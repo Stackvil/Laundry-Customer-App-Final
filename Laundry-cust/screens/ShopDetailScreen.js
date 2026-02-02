@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import Footer from '../components/Footer';
+import { useCart } from '../contexts/CartContext';
 
 // Available items
 const items = [
@@ -69,31 +71,31 @@ const services = [
   {
     id: 'washing',
     name: 'Washing',
-    icon: '🧼',
+    icon: require('../assets/washing.jpg'),
     priceMultiplier: 1.0, // Base price
   },
   {
     id: 'ironing',
     name: 'Ironing',
-    icon: '🔥',
+    icon: require('../assets/ironing.webp'),
     priceMultiplier: 0.6, // 60% of base price
   },
   {
     id: 'dry-cleaning',
     name: 'Dry Cleaning',
-    icon: '✨',
+    icon: require('../assets/dry cleaning.webp'),
     priceMultiplier: 2.5, // 250% of base price
   },
   {
     id: 'stain-removal',
     name: 'Stain Removal',
-    icon: '🧪',
+    icon: require('../assets/strain removal.jpg'),
     priceMultiplier: 1.2, // 120% of base price
   },
   {
     id: 'steam-press',
     name: 'Steam Press',
-    icon: '💨',
+    icon: require('../assets/steam press.avif'),
     priceMultiplier: 0.8, // 80% of base price
   },
 ];
@@ -103,6 +105,7 @@ export default function ShopDetailScreen({ route, navigation }) {
   const [expandedItems, setExpandedItems] = useState({}); // Track which items are expanded
   const [selectedItemServices, setSelectedItemServices] = useState({}); // Track selected services for each item
   const [itemQuantities, setItemQuantities] = useState({}); // Track quantities for each item
+  const { clearCart, addToCart } = useCart();
 
   // Toggle item expansion
   const toggleItem = (itemId) => {
@@ -117,7 +120,7 @@ export default function ShopDetailScreen({ route, navigation }) {
     setItemQuantities((prev) => {
       const currentQty = prev[itemId] || 0;
       const newQty = Math.max(0, currentQty + delta);
-      
+
       // If increasing quantity and item is not expanded, expand it to show services
       if (delta > 0 && newQty > 0) {
         setExpandedItems((prevExpanded) => {
@@ -131,13 +134,13 @@ export default function ShopDetailScreen({ route, navigation }) {
           return prevExpanded;
         });
       }
-      
+
       if (newQty === 0) {
         const updated = { ...prev };
         delete updated[itemId];
         return updated;
       }
-      
+
       return {
         ...prev,
         [itemId]: newQty,
@@ -155,7 +158,7 @@ export default function ShopDetailScreen({ route, navigation }) {
     setSelectedItemServices((prev) => {
       const itemServices = prev[itemId] || [];
       const isSelected = itemServices.includes(serviceId);
-      
+
       if (isSelected) {
         // Remove service
         return {
@@ -194,10 +197,19 @@ export default function ShopDetailScreen({ route, navigation }) {
     }, 0);
   };
 
+  // Get grand total amount
+  const getGrandTotal = () => {
+    return items.reduce((total, item) => {
+      const qty = getQuantity(item.id);
+      const selectedServices = selectedItemServices[item.id] || [];
+      return total + calculateItemPrice(item, selectedServices, qty);
+    }, 0);
+  };
+
   // Calculate price for item with selected services and quantity
   const calculateItemPrice = (item, selectedServiceIds, quantity = 1) => {
     if (selectedServiceIds.length === 0 || quantity === 0) return 0;
-    
+
     let pricePerItem = 0;
     selectedServiceIds.forEach((serviceId) => {
       const service = services.find((s) => s.id === serviceId);
@@ -205,43 +217,92 @@ export default function ShopDetailScreen({ route, navigation }) {
         pricePerItem += item.basePrice * service.priceMultiplier;
       }
     });
-    
+
     return Math.round(pricePerItem * quantity);
   };
 
-  const handleContinue = () => {
-    const selectedItems = items
+  const getSelectedItemsData = () => {
+    return items
       .filter((item) => {
         const qty = getQuantity(item.id);
-        return selectedItemServices[item.id]?.length > 0 && qty > 0;
+        return (selectedItemServices[item.id] || []).length > 0 && qty > 0;
       })
       .map((item) => {
         const qty = getQuantity(item.id);
+        const itemServices = selectedItemServices[item.id].map((serviceId) =>
+          services.find((s) => s.id === serviceId)
+        );
+
         return {
-          ...item,
+          id: item.id,
+          name: item.name,
+          icon: item.icon,
           quantity: qty,
-          selectedServices: selectedItemServices[item.id].map((serviceId) =>
-            services.find((s) => s.id === serviceId)
-          ),
-          price: calculateItemPrice(item, selectedItemServices[item.id], qty),
+          services: itemServices,
+          price: calculateItemPrice(item, selectedItemServices[item.id], 1), // Price per unit
         };
       });
+  };
 
-    if (selectedItems.length === 0) {
+  const handleAddToCart = () => {
+    const selectedItemsData = getSelectedItemsData();
+
+    if (selectedItemsData.length === 0) {
       return;
     }
 
-    // Navigate to ServiceDetail with selected items
-    navigation.navigate('ServiceDetail', {
-      shop,
-      selectedItems,
-      service: { name: 'Multiple Services', icon: '🛍️' },
+    // Add each selected item + service combination to cart without clearing
+    selectedItemsData.forEach(itemData => {
+      itemData.services.forEach(service => {
+        const servicePrice = Math.round(items.find(i => i.id === itemData.id).basePrice * service.priceMultiplier);
+        addToCart(itemData.id, itemData.quantity, service.name, {
+          id: `${itemData.id}-${service.id}`,
+          name: `${itemData.name}`,
+          price: servicePrice,
+          icon: itemData.icon,
+          unit: 'item'
+        });
+      });
     });
+
+    Alert.alert(
+      'Success',
+      'Items added to cart successfully!',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleProceedToPayment = () => {
+    const selectedItemsData = getSelectedItemsData();
+
+    if (selectedItemsData.length === 0) {
+      return;
+    }
+
+    // Clear the cart first as it was doing in handleContinue
+    clearCart();
+
+    // Add each selected item + service combination to cart
+    selectedItemsData.forEach(itemData => {
+      itemData.services.forEach(service => {
+        const servicePrice = Math.round(items.find(i => i.id === itemData.id).basePrice * service.priceMultiplier);
+        addToCart(itemData.id, itemData.quantity, service.name, {
+          id: `${itemData.id}-${service.id}`,
+          name: `${itemData.name}`,
+          price: servicePrice,
+          icon: itemData.icon,
+          unit: 'item'
+        });
+      });
+    });
+
+    // Navigate to OrderSummary
+    navigation.navigate('OrderSummary');
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
@@ -252,7 +313,7 @@ export default function ShopDetailScreen({ route, navigation }) {
         >
           <View style={styles.headerTop}>
             <View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => navigation.goBack()}
               >
@@ -305,13 +366,16 @@ export default function ShopDetailScreen({ route, navigation }) {
                     <View style={styles.itemInfo}>
                       <Text style={styles.itemName}>{item.name}</Text>
                       {hasSelectedServices && (
-                        <Text style={styles.itemSelectedServices}>
-                          {itemSelectedServices.length} service{itemSelectedServices.length > 1 ? 's' : ''} selected
-                        </Text>
+                        <View>
+                          <Text style={styles.itemSelectedServices}>
+                            {itemSelectedServices.length} service{itemSelectedServices.length > 1 ? 's' : ''} selected
+                          </Text>
+                          <Text style={styles.itemTotalPrice}>Total: ₹{calculateItemPrice(item, itemSelectedServices, quantity)}</Text>
+                        </View>
                       )}
                     </View>
                   </TouchableOpacity>
-                  
+
                   {/* Quantity Controls */}
                   <View style={styles.quantityContainer}>
                     {quantity > 0 && (
@@ -372,7 +436,9 @@ export default function ShopDetailScreen({ route, navigation }) {
                                   <Ionicons name="checkmark" size={16} color={Colors.white} />
                                 )}
                               </View>
-                              <Text style={styles.serviceOptionIcon}>{service.icon}</Text>
+                              <View style={styles.serviceOptionIconContainer}>
+                                <Image source={service.icon} style={styles.serviceOptionIconImage} resizeMode="cover" />
+                              </View>
                               <View style={styles.serviceOptionInfo}>
                                 <Text style={styles.serviceOptionName}>{service.name}</Text>
                                 <Text style={styles.serviceOptionPrice}>₹{servicePrice}</Text>
@@ -383,34 +449,43 @@ export default function ShopDetailScreen({ route, navigation }) {
                       })}
                     </View>
                   </View>
-                )}
+                )
+                }
               </View>
             );
           })}
         </View>
-      </ScrollView>
+      </ScrollView >
 
-      {/* Continue Button */}
-      {getSelectedItemsCount() > 0 && (
-        <View style={styles.footer}>
-          <View style={styles.footerInfo}>
-            <Text style={styles.footerText}>
-              {getSelectedItemsCount()} item{getSelectedItemsCount() > 1 ? 's' : ''} • {getTotalQuantity()} total qty
-            </Text>
+      {/* Action Buttons */}
+      {
+        getSelectedItemsCount() > 0 && (
+          <View style={styles.footer}>
+            <View style={styles.footerInfo}>
+              <Text style={styles.footerText}>
+                {getSelectedItemsCount()} item{getSelectedItemsCount() > 1 ? 's' : ''} • {getTotalQuantity()} total qty
+              </Text>
+              <Text style={styles.footerTotal}>Total: ₹{getGrandTotal()}</Text>
+            </View>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
+                <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.paymentButton} onPress={handleProceedToPayment}>
+                <LinearGradient
+                  colors={[Colors.primary, Colors.secondary]}
+                  style={styles.paymentButtonGradient}
+                >
+                  <Text style={styles.paymentButtonText}>Proceed to Payment</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
-          <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-            <LinearGradient
-              colors={[Colors.primary, Colors.secondary]}
-              style={styles.continueButtonGradient}
-            >
-              <Text style={styles.continueButtonText}>Continue</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      )}
+        )
+      }
 
       <Footer navigation={navigation} currentScreen={null} />
-    </View>
+    </View >
   );
 }
 
@@ -571,6 +646,12 @@ const styles = StyleSheet.create({
     color: Colors.success,
     fontWeight: '600',
   },
+  itemTotalPrice: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
   servicesContainer: {
     padding: 15,
     paddingTop: 0,
@@ -612,7 +693,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: Colors.lightGray,
-    marginRight: 12,
+    marginRight: 2,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.white,
@@ -621,9 +702,17 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.success,
     borderColor: Colors.success,
   },
-  serviceOptionIcon: {
-    fontSize: 24,
+  serviceOptionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     marginRight: 12,
+    overflow: 'hidden',
+    backgroundColor: Colors.background,
+  },
+  serviceOptionIconImage: {
+    width: '100%',
+    height: '100%',
   },
   serviceOptionInfo: {
     flex: 1,
@@ -650,26 +739,53 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   footerInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 15,
   },
   footerText: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.textLight,
     fontWeight: '500',
-    textAlign: 'center',
   },
-  continueButton: {
+  footerTotal: {
+    fontSize: 20,
+    color: Colors.primary,
+    fontWeight: 'bold',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  addToCartButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+  },
+  addToCartButtonText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  paymentButton: {
+    flex: 1.5,
     borderRadius: 12,
     overflow: 'hidden',
   },
-  continueButtonGradient: {
+  paymentButtonGradient: {
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  continueButtonText: {
+  paymentButtonText: {
     color: Colors.white,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
-

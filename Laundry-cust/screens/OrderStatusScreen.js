@@ -9,45 +9,62 @@ import {
 import { Colors } from '../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import Footer from '../components/Footer';
-import { LinearGradient } from 'expo-linear-gradient';
 
-export default function OrderStatusScreen({ navigation }) {
+export default function OrderStatusScreen({ route, navigation }) {
+  const { order } = route.params || {};
+
   const statusSteps = [
     {
       id: 'placed',
       title: 'Order Placed',
-      time: '1:45 PM',
+      time: order?.date ? '10:00 AM' : '1:45 PM', // Mock time if no real time available
       completed: true,
       icon: 'checkmark',
     },
     {
       id: 'picked',
       title: 'Picked Up',
-      time: '2:15 PM',
-      completed: true,
+      time: order?.status === 'Pending' ? '--' : '2:15 PM',
+      completed: order?.status !== 'Pending',
       icon: 'checkmark',
     },
     {
       id: 'progress',
       title: 'In Progress',
       subtitle: 'Washing & Drying',
-      completed: true,
+      completed: order?.status === 'Completed' || order?.status === 'In Progress',
       icon: 'checkmark',
     },
     {
       id: 'delivery',
       title: 'Out for Delivery',
       time: 'Est. 4:30 PM',
-      active: true,
+      active: order?.status === 'In Progress',
       icon: 'car',
     },
     {
       id: 'delivered',
       title: 'Delivered',
-      completed: false,
+      completed: order?.status === 'Completed',
       icon: 'cube',
     },
   ];
+
+  if (!order) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Order Status</Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No order selected</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -58,25 +75,15 @@ export default function OrderStatusScreen({ navigation }) {
             <Ionicons name="arrow-back" size={24} color={Colors.primary} />
           </TouchableOpacity>
         </View>
-        <Text style={styles.headerTitle}>Order Status</Text>
+        <Text style={styles.headerTitle}>Order #{order.orderNumber}</Text>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Estimated Arrival Card */}
         <View style={styles.arrivalCard}>
-          <Text style={styles.arrivalTime}>Arriving 4:00 – 5:00 PM</Text>
-          <Text style={styles.arrivalSubtext}>Your laundry is on its way!</Text>
+          <Text style={styles.arrivalTime}>{order.status === 'Completed' ? 'Delivered' : 'Arriving 4:00 – 5:00 PM'}</Text>
+          <Text style={styles.arrivalSubtext}>{order.status === 'Completed' ? 'Your laundry was delivered successfully' : 'Your laundry is on its way!'}</Text>
         </View>
-
-        {/* Decorative Banner */}
-        <LinearGradient
-          colors={['#2d5016', Colors.success, Colors.secondary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.decorativeBanner}
-        >
-          <View style={styles.wavePattern} />
-        </LinearGradient>
 
         {/* Timeline */}
         <View style={styles.timelineContainer}>
@@ -134,22 +141,50 @@ export default function OrderStatusScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Order Summary */}
-        <TouchableOpacity style={styles.orderSummaryCard}>
-          <Text style={styles.orderSummaryTitle}>Order Summary</Text>
-          <Ionicons name="chevron-down" size={20} color={Colors.primary} />
-        </TouchableOpacity>
+        {/* Order Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Order Information</Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Mobile</Text>
+            <Text style={styles.detailValue}>{order.mobileNumber}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Address</Text>
+            <Text style={styles.detailValue}>{order.address}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Payment</Text>
+            <Text style={styles.detailValue}>{order.paymentMethod}</Text>
+          </View>
+        </View>
+
+        {/* Order Items */}
+        <View style={[styles.section, { marginBottom: 30 }]}>
+          <Text style={styles.sectionTitle}>Items Ordered</Text>
+          {order.items?.map((item, index) => (
+            <View key={index} style={styles.itemRow}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemService}>{item.service} x{item.quantity}</Text>
+              </View>
+              <Text style={styles.itemPrice}>₹{item.price.toFixed(2)}</Text>
+            </View>
+          ))}
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total Paid</Text>
+            <Text style={styles.totalValue}>₹{order.total?.toFixed(2)}</Text>
+          </View>
+        </View>
       </ScrollView>
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.receiptButton}>
-          <Ionicons name="receipt" size={20} color={Colors.white} />
-          <Text style={styles.receiptButtonText}>View Receipt</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.supportButton}>
-          <Ionicons name="headset" size={20} color={Colors.secondary} />
-          <Text style={styles.supportButtonText}>Contact Support</Text>
+        <TouchableOpacity
+          style={styles.receiptButton}
+          onPress={() => navigation.navigate('Orders')}
+        >
+          <Ionicons name="list" size={20} color={Colors.white} />
+          <Text style={styles.receiptButtonText}>All My Orders</Text>
         </TouchableOpacity>
       </View>
       <Footer navigation={navigation} currentScreen="Orders" />
@@ -195,16 +230,6 @@ const styles = StyleSheet.create({
   arrivalSubtext: {
     fontSize: 14,
     color: Colors.textLight,
-  },
-  decorativeBanner: {
-    height: 80,
-    borderRadius: 16,
-    marginBottom: 30,
-    overflow: 'hidden',
-  },
-  wavePattern: {
-    flex: 1,
-    opacity: 0.3,
   },
   timelineContainer: {
     marginBottom: 20,
@@ -302,19 +327,85 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  supportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.secondary,
-    borderRadius: 12,
-    padding: 18,
-    gap: 10,
+  section: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
   },
-  supportButtonText: {
-    color: Colors.primary,
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: 15,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: Colors.textLight,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 20,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.lightGray,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  itemService: {
+    fontSize: 14,
+    color: Colors.textLight,
+  },
+  itemPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  totalLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.secondary,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: Colors.textLight,
   },
 });
 

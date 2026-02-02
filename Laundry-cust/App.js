@@ -21,7 +21,8 @@ import PaymentMethodsScreen from './screens/PaymentMethodsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import CartScreen from './screens/CartScreen';
 import OrderSummaryScreen from './screens/OrderSummaryScreen';
-import PaymentScreen from './screens/PaymentScreen';
+import SecurePaymentScreen from './screens/SecurePaymentScreen';
+import OrderStatusScreen from './screens/OrderStatusScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import HelpSupportScreen from './screens/HelpSupportScreen';
 import PrivacySettingsScreen from './screens/PrivacySettingsScreen';
@@ -36,36 +37,37 @@ export default function App() {
       <CartProvider>
         <OrderProvider>
           <NavigationContainer>
-          <StatusBar style="dark" />
-          <Stack.Navigator
-            initialRouteName="Home"
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="ShopDetail" component={ShopDetailScreen} />
-            <Stack.Screen name="ServiceDetail" component={ServiceDetailScreen} />
-            <Stack.Screen name="ServiceSelection" component={ServiceSelectionScreen} />
-            <Stack.Screen name="ProductPreview" component={ProductPreviewScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="Orders" component={OrdersScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-            <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
-            <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
-            <Stack.Screen name="Cart" component={CartScreen} />
-            <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
-            <Stack.Screen name="Payment" component={PaymentScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
-            <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
-            <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} />
-            <Stack.Screen name="About" component={AboutScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
+            <StatusBar style="dark" />
+            <Stack.Navigator
+              initialRouteName="Home"
+              screenOptions={{
+                headerShown: false,
+              }}
+            >
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="ShopDetail" component={ShopDetailScreen} />
+              <Stack.Screen name="ServiceDetail" component={ServiceDetailScreen} />
+              <Stack.Screen name="ServiceSelection" component={ServiceSelectionScreen} />
+              <Stack.Screen name="ProductPreview" component={ProductPreviewScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Signup" component={SignupScreen} />
+              <Stack.Screen name="Orders" component={OrdersScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+              <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
+              <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+              <Stack.Screen name="Notifications" component={NotificationsScreen} />
+              <Stack.Screen name="Cart" component={CartScreen} />
+              <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
+              <Stack.Screen name="Payment" component={SecurePaymentScreen} />
+              <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+              <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
+              <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} />
+              <Stack.Screen name="About" component={AboutScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
         </OrderProvider>
       </CartProvider>
     </AuthProvider>
