@@ -13,42 +13,54 @@ import Footer from '../components/Footer';
 export default function OrderStatusScreen({ route, navigation }) {
   const { order } = route.params || {};
 
-  const statusSteps = [
-    {
-      id: 'placed',
-      title: 'Order Placed',
-      time: order?.date ? '10:00 AM' : '1:45 PM', // Mock time if no real time available
-      completed: true,
-      icon: 'checkmark',
-    },
-    {
-      id: 'picked',
-      title: 'Picked Up',
-      time: order?.status === 'Pending' ? '--' : '2:15 PM',
-      completed: order?.status !== 'Pending',
-      icon: 'checkmark',
-    },
-    {
-      id: 'progress',
-      title: 'In Progress',
-      subtitle: 'Washing & Drying',
-      completed: order?.status === 'Completed' || order?.status === 'In Progress',
-      icon: 'checkmark',
-    },
-    {
-      id: 'delivery',
-      title: 'Out for Delivery',
-      time: 'Est. 4:30 PM',
-      active: order?.status === 'In Progress',
-      icon: 'car',
-    },
-    {
-      id: 'delivered',
-      title: 'Delivered',
-      completed: order?.status === 'Completed',
-      icon: 'cube',
-    },
-  ];
+  // Status mapping for the tracker
+  const getStatusSteps = () => {
+    const isPending = order?.status === 'Pending';
+    const isInProgress = order?.status === 'In Progress';
+    const isCompleted = order?.status === 'Completed';
+
+    return [
+      {
+        id: 'placed',
+        title: 'Ordered',
+        subtitle: 'We have received your order',
+        time: 'Feb 4, 11:30 AM',
+        isCompleted: true,
+        isActive: isPending,
+      },
+      {
+        id: 'picked',
+        title: 'Picked Up',
+        subtitle: 'Laundry picked up by agent',
+        time: !isPending ? 'Feb 4, 12:15 PM' : null,
+        isCompleted: !isPending,
+        isActive: false,
+      },
+      {
+        id: 'processing',
+        title: 'Processing',
+        subtitle: 'Washing, drying & folding in progress',
+        isCompleted: isCompleted || isInProgress,
+        isActive: isInProgress,
+      },
+      {
+        id: 'out_for_delivery',
+        title: 'Out for delivery',
+        subtitle: 'Agent is on the way to your home',
+        isCompleted: isCompleted,
+        isActive: false,
+      },
+      {
+        id: 'delivered',
+        title: 'Delivered',
+        subtitle: 'Package was left at front door',
+        isCompleted: isCompleted,
+        isActive: false,
+      },
+    ];
+  };
+
+  const statusSteps = getStatusSteps();
 
   if (!order) {
     return (
@@ -66,127 +78,132 @@ export default function OrderStatusScreen({ route, navigation }) {
     );
   }
 
+  const currentStatusIndex = statusSteps.findLastIndex(s => s.isCompleted);
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.headerTitle}>Order #{order.orderNumber}</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Order Details</Text>
+        <View style={styles.headerRight} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Estimated Arrival Card */}
-        <View style={styles.arrivalCard}>
-          <Text style={styles.arrivalTime}>{order.status === 'Completed' ? 'Delivered' : 'Arriving 4:00 – 5:00 PM'}</Text>
-          <Text style={styles.arrivalSubtext}>{order.status === 'Completed' ? 'Your laundry was delivered successfully' : 'Your laundry is on its way!'}</Text>
-        </View>
+        {/* Amazon-style Vertical Timeline */}
+        <View style={styles.timelineSection}>
+          <Text style={styles.timelineSectionTitle}>Track Shipment</Text>
 
-        {/* Timeline */}
-        <View style={styles.timelineContainer}>
-          {statusSteps.map((step, index) => (
-            <View key={step.id} style={styles.timelineItem}>
-              <View style={styles.timelineLeft}>
-                <View
-                  style={[
-                    styles.timelineIcon,
-                    step.completed && styles.timelineIconCompleted,
-                    step.active && styles.timelineIconActive,
-                    !step.completed && !step.active && styles.timelineIconPending,
-                  ]}
-                >
-                  <Ionicons
-                    name={step.icon}
-                    size={16}
-                    color={step.completed || step.active ? Colors.white : Colors.lightGray}
-                  />
+          <View style={styles.timelineContainer}>
+            {statusSteps.map((step, index) => {
+              const isLast = index === statusSteps.length - 1;
+              const isNextStep = index === currentStatusIndex + 1;
+
+              return (
+                <View key={step.id} style={styles.timelineItem}>
+                  <View style={styles.timelineLeft}>
+                    <View
+                      style={[
+                        styles.dot,
+                        step.isCompleted && styles.dotCompleted,
+                        step.isActive && styles.dotActive,
+                      ]}
+                    >
+                      {step.isCompleted && (
+                        <Ionicons name="checkmark" size={12} color={Colors.white} />
+                      )}
+                    </View>
+                    {!isLast && (
+                      <View
+                        style={[
+                          styles.line,
+                          step.isCompleted && statusSteps[index + 1].isCompleted && styles.lineCompleted,
+                        ]}
+                      />
+                    )}
+                  </View>
+                  <View style={styles.timelineContent}>
+                    <View style={styles.timelineHeader}>
+                      <Text
+                        style={[
+                          styles.timelineTitle,
+                          step.isCompleted && styles.timelineTitleCompleted,
+                          step.isActive && styles.timelineTitleActive,
+                        ]}
+                      >
+                        {step.title}
+                      </Text>
+                      {step.time && (
+                        <Text style={styles.timelineTime}>{step.time}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.timelineSubtitle}>{step.subtitle}</Text>
+                  </View>
                 </View>
-                {index < statusSteps.length - 1 && (
-                  <View
-                    style={[
-                      styles.timelineLine,
-                      step.completed && styles.timelineLineCompleted,
-                    ]}
-                  />
-                )}
-              </View>
-              <View style={styles.timelineContent}>
-                <Text
-                  style={[
-                    styles.timelineTitle,
-                    step.active && styles.timelineTitleActive,
-                    !step.completed && !step.active && styles.timelineTitlePending,
-                  ]}
-                >
-                  {step.title}
-                </Text>
-                {step.subtitle && (
-                  <Text style={styles.timelineSubtitle}>{step.subtitle}</Text>
-                )}
-                {step.time && (
-                  <Text
-                    style={[
-                      styles.timelineTime,
-                      !step.completed && !step.active && styles.timelineTimePending,
-                    ]}
-                  >
-                    {step.time}
-                  </Text>
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Order Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Information</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Mobile</Text>
-            <Text style={styles.detailValue}>{order.mobileNumber}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Address</Text>
-            <Text style={styles.detailValue}>{order.address}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Payment</Text>
-            <Text style={styles.detailValue}>{order.paymentMethod}</Text>
+              );
+            })}
           </View>
         </View>
 
-        {/* Order Items */}
-        <View style={[styles.section, { marginBottom: 30 }]}>
-          <Text style={styles.sectionTitle}>Items Ordered</Text>
-          {order.items?.map((item, index) => (
-            <View key={index} style={styles.itemRow}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemService}>{item.service} x{item.quantity}</Text>
-              </View>
-              <Text style={styles.itemPrice}>₹{item.price.toFixed(2)}</Text>
+        {/* Order Info & Address */}
+        <View style={styles.infoSection}>
+          <View style={styles.infoRow}>
+            <Ionicons name="location-outline" size={20} color={Colors.textLight} />
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoLabel}>Delivery Address</Text>
+              <Text style={styles.infoValue}>{order.address}</Text>
             </View>
-          ))}
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total Paid</Text>
-            <Text style={styles.totalValue}>₹{order.total?.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.infoRow}>
+            <Ionicons name="card-outline" size={20} color={Colors.textLight} />
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoLabel}>Payment Method</Text>
+              <Text style={styles.infoValue}>{order.paymentMethod}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Order Summary with Items */}
+        <View style={styles.summarySection}>
+          <Text style={styles.summaryTitle}>Order Summary</Text>
+
+          {/* Item List */}
+          <View style={styles.itemsList}>
+            {order.items?.map((item, index) => (
+              <View key={index} style={styles.summaryItemRow}>
+                <View style={styles.itemMainInfo}>
+                  <Text style={styles.summaryItemName}>{item.name}</Text>
+                  <Text style={styles.summaryItemSubtitle}>{item.service} x{item.quantity}</Text>
+                </View>
+                <Text style={styles.summaryItemPrice}>₹{item.price.toFixed(2)}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.summaryDivider} />
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryTotalLabel}>Order Total</Text>
+            <Text style={styles.summaryTotalValue}>₹{order.total?.toFixed(2)}</Text>
           </View>
         </View>
       </ScrollView>
 
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
+      {/* Action Bar */}
+      <View style={styles.actionBar}>
         <TouchableOpacity
-          style={styles.receiptButton}
-          onPress={() => navigation.navigate('Orders')}
+          style={styles.homeButton}
+          onPress={() => navigation.navigate('Home')}
         >
-          <Ionicons name="list" size={20} color={Colors.white} />
-          <Text style={styles.receiptButtonText}>All My Orders</Text>
+          <Text style={styles.homeButtonText}>Return to Shopping</Text>
         </TouchableOpacity>
       </View>
+
       <Footer navigation={navigation} currentScreen="Orders" />
     </View>
   );
@@ -195,207 +212,220 @@ export default function OrderStatusScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#EDF0F3', // Amazon-like background
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 35,
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingTop: 50,
+    paddingBottom: 15,
     backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DDD',
+  },
+  backButton: {
+    padding: 5,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.primary,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#111',
+  },
+  headerRight: {
+    width: 34,
   },
   scrollView: {
     flex: 1,
-    padding: 20,
   },
-  arrivalCard: {
+  timelineSection: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
-    alignItems: 'center',
+    marginBottom: 10,
   },
-  arrivalTime: {
-    fontSize: 24,
+  timelineSectionTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.primary,
-    marginBottom: 8,
-  },
-  arrivalSubtext: {
-    fontSize: 14,
-    color: Colors.textLight,
+    color: '#111',
+    marginBottom: 20,
   },
   timelineContainer: {
-    marginBottom: 20,
+    paddingLeft: 5,
   },
   timelineItem: {
     flexDirection: 'row',
-    marginBottom: 20,
+    minHeight: 70,
   },
   timelineLeft: {
     alignItems: 'center',
     marginRight: 15,
-  },
-  timelineIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timelineIconCompleted: {
-    backgroundColor: Colors.secondary,
-  },
-  timelineIconActive: {
-    backgroundColor: Colors.secondary,
-  },
-  timelineIconPending: {
-    backgroundColor: Colors.lightGray,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    minHeight: 40,
-    marginTop: 5,
-  },
-  timelineLineCompleted: {
-    backgroundColor: Colors.secondary,
+    width: 20,
   },
   timelineContent: {
     flex: 1,
-    paddingTop: 4,
+    paddingBottom: 20,
+  },
+  dot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#DDD',
+    zIndex: 2,
+    marginTop: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dotCompleted: {
+    backgroundColor: '#067D62', // Amazon green
+  },
+  dotActive: {
+    backgroundColor: '#007185',
+    borderWidth: 3,
+    borderColor: '#B0E0E6',
+  },
+  line: {
+    width: 3,
+    flex: 1,
+    backgroundColor: '#E7E9EC',
+    position: 'absolute',
+    top: 18,
+    left: 8.5,
+    bottom: -4,
+    zIndex: 1,
+  },
+  lineCompleted: {
+    backgroundColor: '#067D62',
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   timelineTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.primary,
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#565959',
+  },
+  timelineTitleCompleted: {
+    color: '#111',
+    fontWeight: 'bold',
   },
   timelineTitleActive: {
-    color: Colors.secondary,
-  },
-  timelineTitlePending: {
-    color: Colors.textLight,
+    color: '#007185',
+    fontWeight: 'bold',
   },
   timelineSubtitle: {
-    fontSize: 14,
-    color: Colors.textLight,
-    marginBottom: 4,
+    fontSize: 13,
+    color: '#565959',
   },
   timelineTime: {
     fontSize: 12,
-    color: Colors.textLight,
+    color: '#565959',
   },
-  timelineTimePending: {
-    color: Colors.lightGray,
-  },
-  orderSummaryCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  infoSection: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
     padding: 20,
-    marginBottom: 20,
-  },
-  orderSummaryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  actionButtons: {
-    padding: 20,
-    gap: 15,
-  },
-  receiptButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    padding: 18,
-    gap: 10,
-  },
-  receiptButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  section: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    marginBottom: 15,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 10,
   },
-  detailLabel: {
-    fontSize: 14,
-    color: Colors.textLight,
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  detailValue: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '500',
-    textAlign: 'right',
+  infoTextContainer: {
+    marginLeft: 15,
     flex: 1,
-    marginLeft: 20,
   },
-  itemRow: {
+  infoLabel: {
+    fontSize: 13,
+    color: '#565959',
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#111',
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E7E9EC',
+    marginVertical: 15,
+  },
+  summarySection: {
+    backgroundColor: Colors.white,
+    padding: 20,
+    marginBottom: 30,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111',
+    marginBottom: 15,
+  },
+  itemsList: {
+    marginBottom: 10,
+  },
+  summaryItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.lightGray,
   },
-  itemInfo: {
+  itemMainInfo: {
     flex: 1,
   },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  itemService: {
+  summaryItemName: {
     fontSize: 14,
-    color: Colors.textLight,
+    fontWeight: '500',
+    color: '#111',
   },
-  itemPrice: {
+  summaryItemSubtitle: {
+    fontSize: 12,
+    color: '#565959',
+    marginTop: 2,
+  },
+  summaryItemPrice: {
+    fontSize: 14,
+    color: '#111',
+    fontWeight: '500',
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: '#E7E9EC',
+    marginBottom: 15,
+  },
+  summaryTotalLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  totalLabel: {
-    fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.primary,
+    color: '#111',
   },
-  totalValue: {
-    fontSize: 18,
+  summaryTotalValue: {
+    fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.secondary,
+    color: '#B12704', // Amazon price color
+  },
+  actionBar: {
+    padding: 15,
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: '#DDD',
+  },
+  homeButton: {
+    backgroundColor: '#FFD814', // Amazon yellow button
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  homeButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#111',
   },
   emptyContainer: {
     flex: 1,
@@ -404,7 +434,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     color: Colors.textLight,
   },
 });

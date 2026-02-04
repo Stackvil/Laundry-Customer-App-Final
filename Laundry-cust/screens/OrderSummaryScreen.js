@@ -18,14 +18,15 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import Footer from '../components/Footer';
 
-export default function OrderSummaryScreen({ navigation }) {
+export default function OrderSummaryScreen({ route, navigation }) {
+  const { shop } = route.params || {};
   const { cartItems, getCartTotal } = useCart();
   const { user } = useAuth();
   const [mobileNumber, setMobileNumber] = useState(user?.mobileNumber || '');
   const [address, setAddress] = useState(user?.address || '');
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
-  
+
   // Address form fields
   const [village, setVillage] = useState('');
   const [area, setArea] = useState('');
@@ -64,7 +65,7 @@ export default function OrderSummaryScreen({ navigation }) {
   const getCurrentLocation = async () => {
     try {
       setIsLoadingLocation(true);
-      
+
       // Request permission
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -99,7 +100,7 @@ export default function OrderSummaryScreen({ navigation }) {
         setPincode(addr.postalCode || '');
         setState(addr.region || addr.administrativeArea || '');
         setLandmark(addr.name || '');
-        
+
         // Format full address
         const addressParts = [
           addr.street,
@@ -108,7 +109,7 @@ export default function OrderSummaryScreen({ navigation }) {
           addr.region || addr.administrativeArea,
           addr.postalCode,
         ].filter(Boolean);
-        
+
         setAddress(addressParts.join(', '));
       }
     } catch (error) {
@@ -148,7 +149,7 @@ export default function OrderSummaryScreen({ navigation }) {
       pincode,
       landmark && `Near ${landmark}`,
     ].filter(Boolean);
-    
+
     setAddress(addressParts.join(', '));
     setShowAddressModal(false);
   };
@@ -192,6 +193,15 @@ export default function OrderSummaryScreen({ navigation }) {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Your Basket */}
         <View style={styles.section}>
+          {shop && (
+            <View style={styles.shopDisplay}>
+              <View style={styles.shopDisplayTextContainer}>
+                <Text style={styles.shopTitleLabel}>Your selected shop is</Text>
+                <Text style={styles.shopNameHeader}>{shop.name}</Text>
+              </View>
+              <Text style={styles.shopEmoji}>{shop.image}</Text>
+            </View>
+          )}
           <Text style={styles.sectionTitle}>Your Basket</Text>
           {orderItems.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -205,31 +215,31 @@ export default function OrderSummaryScreen({ navigation }) {
             </View>
           ) : (
             orderItems.map((item) => (
-            <View key={item.id} style={styles.basketItem}>
-              <View style={styles.itemImage}>
-                {item.isImage ? (
-                  <Image source={item.image} style={styles.itemImageIcon} resizeMode="contain" />
-                ) : (
-                  <Text style={styles.itemImageEmoji}>{item.image}</Text>
-                )}
+              <View key={item.id} style={styles.basketItem}>
+                <View style={styles.itemImage}>
+                  {item.isImage ? (
+                    <Image source={item.image} style={styles.itemImageIcon} resizeMode="contain" />
+                  ) : (
+                    <Text style={styles.itemImageEmoji}>{item.image}</Text>
+                  )}
+                </View>
+                <View style={styles.itemDetails}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemService}>
+                    {item.service}, x{item.quantity}
+                  </Text>
+                  <Text style={styles.itemPrice}>₹{item.price.toFixed(2)}</Text>
+                </View>
+                <TouchableOpacity style={styles.editButton}>
+                  <Text style={styles.editButtonText}>Edit</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.itemDetails}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemService}>
-                  {item.service}, x{item.quantity}
-                </Text>
-                <Text style={styles.itemPrice}>₹{item.price.toFixed(2)}</Text>
-              </View>
-              <TouchableOpacity style={styles.editButton}>
-                <Text style={styles.editButtonText}>Edit</Text>
-              </TouchableOpacity>
-            </View>
             ))
           )}
           {orderItems.length > 0 && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.addMoreButton}
-              onPress={() => navigation.navigate('ServiceSelection')}
+              onPress={() => navigation.goBack()}
             >
               <Text style={styles.addMoreButtonText}>Add More Items</Text>
             </TouchableOpacity>
@@ -239,7 +249,7 @@ export default function OrderSummaryScreen({ navigation }) {
         {/* Delivery Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Details</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Mobile Number</Text>
             <TextInput
@@ -798,7 +808,6 @@ const styles = StyleSheet.create({
   },
   modalCancelButtonText: {
     color: Colors.primary,
-    fontSize: 16,
     fontWeight: '600',
   },
   modalSaveButton: {
@@ -812,6 +821,36 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
+  },
+  shopDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    backgroundColor: Colors.background,
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.lightGray,
+  },
+  shopDisplayTextContainer: {
+    flex: 1,
+  },
+  shopTitleLabel: {
+    fontSize: 12,
+    color: Colors.textLight,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  shopEmoji: {
+    fontSize: 28,
+    marginLeft: 10,
+  },
+  shopNameHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.primary,
   },
 });
 

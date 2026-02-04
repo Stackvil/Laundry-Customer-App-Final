@@ -61,7 +61,20 @@ export default function HomeScreen({ navigation }) {
   const getCurrentLocation = async () => {
     try {
       setIsLoadingLocation(true);
-      
+
+      // Check if location services are enabled
+      const enabled = await Location.hasServicesEnabledAsync();
+      if (!enabled) {
+        setCurrentLocation('Location services disabled');
+        setIsLoadingLocation(false);
+        Alert.alert(
+          'Location Services Disabled',
+          'Please enable location services to find nearby shops.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       // Request permission
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -70,10 +83,20 @@ export default function HomeScreen({ navigation }) {
         return;
       }
 
-      // Get current position
-      let location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      // Get current position with fallback
+      let location;
+      try {
+        location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      } catch (error) {
+        console.log('Error getting current position, trying last known...', error);
+        location = await Location.getLastKnownPositionAsync();
+      }
+
+      if (!location) {
+        throw new Error('Current location is unavailable');
+      }
 
       // Reverse geocode to get address
       let geocode = await Location.reverseGeocodeAsync({
@@ -92,7 +115,7 @@ export default function HomeScreen({ navigation }) {
         ]
           .filter(Boolean)
           .join(', ');
-        
+
         setCurrentLocation(addressString || 'Location found');
       } else {
         setCurrentLocation(
@@ -121,88 +144,88 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContent}
         contentContainerStyle={styles.scrollContentStyle}
       >
-      {/* Location Bar Container */}
-      <View style={styles.locationBarContainer}>
-        <LinearGradient
-          colors={[Colors.primary, Colors.secondary]}
-          style={styles.locationBar}
-        >
-          <View style={styles.locationContent}>
-            <Text style={styles.locationIcon}>📍</Text>
-            <View style={styles.locationTextContainer}>
-              {isLoadingLocation ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color={Colors.white} />
-                  <Text style={styles.locationAddress}>Getting location...</Text>
-                </View>
-              ) : (
-                <Text style={styles.locationAddress} numberOfLines={1}>
-                  {currentLocation}
-                </Text>
-              )}
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.changeLocationButton}
-            onPress={handleChangeLocation}
-            disabled={isLoadingLocation}
+        {/* Location Bar Container */}
+        <View style={styles.locationBarContainer}>
+          <LinearGradient
+            colors={[Colors.primary, Colors.secondary]}
+            style={styles.locationBar}
           >
-            <Text style={styles.changeLocationText}>
-              {isLoadingLocation ? '...' : 'Refresh'}
-            </Text>
-          </TouchableOpacity>
-        </LinearGradient>
-      </View>
-
-      {/* Hero Section Container */}
-      <View style={styles.heroContainer}>
-        <LinearGradient
-          colors={[Colors.primary, Colors.secondary]}
-          style={styles.heroSection}
-        >
-          <View style={styles.heroContent}>
-            <Text style={styles.heroEmoji}>🧺</Text>
-            <Text style={styles.heroTitle}>CleanFold</Text>
-            <Text style={styles.heroSubtitle}>
-              Professional laundry services at your doorstep
-            </Text>
-          </View>
-        </LinearGradient>
-      </View>
-
-      {/* Nearby Shops Section */}
-      <View style={styles.shopsSection}>
-        <Text style={styles.sectionTitle}>Nearby Laundry Shops</Text>
-        <Text style={styles.sectionSubtitle}>
-          Choose from the best laundry services in your area
-        </Text>
-
-        {nearbyShops.map((shop) => (
-          <TouchableOpacity
-            key={shop.id}
-            style={styles.shopCard}
-            onPress={() => navigation.navigate('ShopDetail', { shop })}
-          >
-            <View style={styles.shopImageContainer}>
-              <Text style={styles.shopImageEmoji}>{shop.image}</Text>
-            </View>
-            <View style={styles.shopInfo}>
-              <Text style={styles.shopName}>{shop.name}</Text>
-              <Text style={styles.shopAddress}>{shop.address}</Text>
-              <View style={styles.shopMeta}>
-                <Text style={styles.distance}>📍 {shop.distance}</Text>
+            <View style={styles.locationContent}>
+              <Text style={styles.locationIcon}>📍</Text>
+              <View style={styles.locationTextContainer}>
+                {isLoadingLocation ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={Colors.white} />
+                    <Text style={styles.locationAddress}>Getting location...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.locationAddress} numberOfLines={1}>
+                    {currentLocation}
+                  </Text>
+                )}
               </View>
             </View>
-            <View style={styles.arrowContainer}>
-              <Text style={styles.arrow}>›</Text>
+            <TouchableOpacity
+              style={styles.changeLocationButton}
+              onPress={handleChangeLocation}
+              disabled={isLoadingLocation}
+            >
+              <Text style={styles.changeLocationText}>
+                {isLoadingLocation ? '...' : 'Refresh'}
+              </Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+
+        {/* Hero Section Container */}
+        <View style={styles.heroContainer}>
+          <LinearGradient
+            colors={[Colors.primary, Colors.secondary]}
+            style={styles.heroSection}
+          >
+            <View style={styles.heroContent}>
+              <Text style={styles.heroEmoji}>🧺</Text>
+              <Text style={styles.heroTitle}>CleanFold</Text>
+              <Text style={styles.heroSubtitle}>
+                Professional laundry services at your doorstep
+              </Text>
             </View>
-          </TouchableOpacity>
-        ))}
-      </View>
+          </LinearGradient>
+        </View>
+
+        {/* Nearby Shops Section */}
+        <View style={styles.shopsSection}>
+          <Text style={styles.sectionTitle}>Nearby Laundry Shops</Text>
+          <Text style={styles.sectionSubtitle}>
+            Choose from the best laundry services in your area
+          </Text>
+
+          {nearbyShops.map((shop) => (
+            <TouchableOpacity
+              key={shop.id}
+              style={styles.shopCard}
+              onPress={() => navigation.navigate('ShopDetail', { shop })}
+            >
+              <View style={styles.shopImageContainer}>
+                <Text style={styles.shopImageEmoji}>{shop.image}</Text>
+              </View>
+              <View style={styles.shopInfo}>
+                <Text style={styles.shopName}>{shop.name}</Text>
+                <Text style={styles.shopAddress}>{shop.address}</Text>
+                <View style={styles.shopMeta}>
+                  <Text style={styles.distance}>📍 {shop.distance}</Text>
+                </View>
+              </View>
+              <View style={styles.arrowContainer}>
+                <Text style={styles.arrow}>›</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
 
       <Footer navigation={navigation} currentScreen="Home" />

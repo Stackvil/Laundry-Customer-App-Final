@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import Footer from '../components/Footer';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 
 // Available items
 const items = [
@@ -106,6 +107,7 @@ export default function ShopDetailScreen({ route, navigation }) {
   const [selectedItemServices, setSelectedItemServices] = useState({}); // Track selected services for each item
   const [itemQuantities, setItemQuantities] = useState({}); // Track quantities for each item
   const { clearCart, addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
 
   // Toggle item expansion
   const toggleItem = (itemId) => {
@@ -279,6 +281,41 @@ export default function ShopDetailScreen({ route, navigation }) {
       return;
     }
 
+    // Check if user is logged in
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Login Required',
+        'Please login to proceed with your order.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Login',
+            onPress: () => {
+              // Add items to cart before navigating so they are there after login
+              clearCart();
+              selectedItemsData.forEach(itemData => {
+                itemData.services.forEach(service => {
+                  const servicePrice = Math.round(items.find(i => i.id === itemData.id).basePrice * service.priceMultiplier);
+                  addToCart(itemData.id, itemData.quantity, service.name, {
+                    id: `${itemData.id}-${service.id}`,
+                    name: `${itemData.name}`,
+                    price: servicePrice,
+                    icon: itemData.icon,
+                    unit: 'item'
+                  });
+                });
+              });
+              navigation.navigate('Login', {
+                returnScreen: 'OrderSummary',
+                returnParams: { shop }
+              });
+            }
+          }
+        ]
+      );
+      return;
+    }
+
     // Clear the cart first as it was doing in handleContinue
     clearCart();
 
@@ -297,7 +334,7 @@ export default function ShopDetailScreen({ route, navigation }) {
     });
 
     // Navigate to OrderSummary
-    navigation.navigate('OrderSummary');
+    navigation.navigate('OrderSummary', { shop });
   };
 
   return (

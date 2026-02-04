@@ -7,3 +7,5 @@ build/
 .DS_Store
 .vscode/
 laundry.code-workspace
+*.db
+*.db-journal
